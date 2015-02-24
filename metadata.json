@@ -1,0 +1,22 @@
+{
+  "author": "Federico Pastore",
+  "dependencies": [],
+  "license": "Apache License",
+  "name": "federicopastore-puppet_tibco_provider",
+  "operatingsystem_support": [
+    {
+    "operatingsystem":"Windows",
+    "operatingsystemrelease":[ "7.0", "8.0" ]
+    },
+    {
+    "operatingsystem": "Ubuntu",
+    "operatingsystemrelease": [ "12.04", "10.04" ]
+    }
+   ],
+  "project_page": "",
+  "requirements": [],
+  "source": "https://github.com/federicopastore/puppet_tibco_provider",
+  "summary": "A Puppet module to manage TIBCO product",
+  "tags": ["TIBCO", "product", "installer"],
+  "version": "0.1.0"
+}
