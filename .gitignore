@@ -1,1 +1,7 @@
 /pkg/
+
+.project
+
+.settings/com.puppetlabs.geppetto.pp.dsl.PP.prefs
+
+.settings/org.eclipse.ltk.core.refactoring.prefs
