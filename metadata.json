@@ -18,5 +18,5 @@
   "source": "https://github.com/federicopastore/puppet_tibco_provider",
   "summary": "A Puppet module to manage TIBCO product",
   "tags": ["TIBCO", "product", "installer"],
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

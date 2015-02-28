@@ -10,9 +10,9 @@ Puppet::Type.newtype(:product) do
   feature :uninstallable, "The provider can uninstall products.",
         :methods => [:uninstall]
           
-  feature :patchable, "The provider can install patch on products.",
-        :methods => [:applyPatch]
-          
+#  feature :patchable, "The provider can install patch on products.",
+#        :methods => [:applyPatch]
+#          
   feature :upgradeable, "The provider can upgrade to the latest version of a
   products.  This feature is used by specifying `latest` as the
           desired value for the products.",
@@ -70,21 +70,21 @@ Puppet::Type.newtype(:product) do
       end
     end
 
-    newvalue(:patched, :required_features => :patchable) do
-          begin
-            self.retrieve
-            provider.applyPatch
-          rescue => detail
-            self.fail Puppet::Error, "Could not apply patch: #{detail}", detail
-          end
-          
-      if self.retrieve == :absent
-        :product_installed
-      else
-        :product_patched
-      end
-          
-    end
+#    newvalue(:patched, :required_features => :patchable) do
+#          begin
+#            self.retrieve
+#            provider.applyPatch
+#          rescue => detail
+#            self.fail Puppet::Error, "Could not apply patch: #{detail}", detail
+#          end
+#          
+#      if self.retrieve == :absent
+#        :product_installed
+#      else
+#        :product_patched
+#      end
+#          
+#    end
 
 #    newvalue(/./, :required_features => :patchable) do
 #          begin
@@ -201,9 +201,9 @@ Puppet::Type.newtype(:product) do
  providify
      # paramclass(:provider).isnamevar 
   
-  newparam(:zipped) do
-    newvalues(:true, :false)
-  end
+#  newparam(:zipped) do
+#    newvalues(:true, :false)
+#  end
 
   newparam(:repository) do
 
@@ -230,51 +230,23 @@ Puppet::Type.newtype(:product) do
     end
   end
 
+  
+  # This only exists for testing.
+  def clear
+    if obj = @parameters[:ensure]
+      obj.latest = nil
+    end
+  end
 
-  newparam(:responsefileproperites) do
-        desc "A file containing any necessary answers to questions asked by
-          the product.  This is currently used on Solaris and Debian.  The
-          value will be validated according to system rules, but it should
-          generally be a fully qualified path."
-      end  
-      
-  newparam(:responsefile) do
-        desc "A file containing any necessary answers to questions asked by
-          the product.  This is currently used on Solaris and Debian.  The
-          value will be validated according to system rules, but it should
-          generally be a fully qualified path."
-      end
+  # The 'query' method returns a hash of info if the package
+  # exists and returns nil if it does not.
+  def exists?
+    @provider.get(:ensure) != :absent
+  end
 
-  autorequire(:file) do
-        autos = []
-        [:responsefile].each { |param|
-          if val = self[param]
-            autos << val
-          end
-        }
-  
-        if source = self[:source] and absolute_path?(source)
-          autos << source
-        end
-        autos
-      end
-  
-      # This only exists for testing.
-      def clear
-        if obj = @parameters[:ensure]
-          obj.latest = nil
-        end
-      end
-  
-      # The 'query' method returns a hash of info if the package
-      # exists and returns nil if it does not.
-      def exists?
-        @provider.get(:ensure) != :absent
-      end
-  
-      def present?(current_values)
-        super && current_values[:ensure] != :purged
-      end      
+  def present?(current_values)
+    super && current_values[:ensure] != :purged
+  end      
         
   newparam(:install_home) do
     validate do |value|
@@ -290,22 +262,16 @@ Puppet::Type.newtype(:product) do
     end
   end
 
-newproperty(:type) do
-end
+  newparam(:id) do
+  end
 
-newproperty(:id) do
-end  
-
-#newproperty(:status) do
-#end 
-#
-#newproperty(:error) do
-#end 
+  newparam(:status) do
+  end
 
 
   validate do
     fail('source is required when ensure is present') if self[:ensure] == :present and self[:source].nil?
-    fail('source cannot be directory when zipped is true') if self[:zipped] == :true and self[:source].nil?
+    #fail('source cannot be directory when zipped is true') if self[:zipped] == :true and self[:source].nil?
   end
 
 

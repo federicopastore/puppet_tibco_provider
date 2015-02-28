@@ -194,10 +194,7 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
 
   def install
     #notice("called install for product #{resource}")
-    if :zipped
-      self.class.unzip(@resource)
-    end
-    
+    self.class.unzip(@resource)
     self.class.createResponseFile(@resource)
     command = [self.class.find_installer(@resource), "-silent", "-V responseFile='#{self.class.get_install_location(resource)}/puppet.silent'"].flatten.compact.join(' ')
     output = execute(command, :failonfail => false, :combine => true)
