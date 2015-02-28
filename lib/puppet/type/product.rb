@@ -205,7 +205,7 @@ Puppet::Type.newtype(:product) do
 #    newvalues(:true, :false)
 #  end
 
-  newparam(:repository) do
+  newparam(:responsefileproperites) do
 
   end
   

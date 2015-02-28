@@ -22,7 +22,7 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
  
    def self.get_install_location(resource)
      #notice("called get_install_location ")
-     install_location = resource[:zipped] == :false ? resource[:source] : "/tmp/#{resource[:name]}"
+     install_location = "/tmp/#{resource[:name]}"
      return install_location
    end
 
