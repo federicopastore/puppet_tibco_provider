@@ -230,6 +230,8 @@ Puppet::Type.newtype(:product) do
     end
   end
 
+  newparam(:repository) do
+  end  
   
   # This only exists for testing.
   def clear

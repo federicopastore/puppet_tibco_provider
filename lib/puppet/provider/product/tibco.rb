@@ -1,12 +1,9 @@
 require 'puppet/provider/productprovider'
-#require 'puppet/productprovider'
 require 'puppet/type/product'
-#require 'puppet/util/package'
 require 'puppet'
 require 'nokogiri'
-#require 'rexml/document'
-#require 'facter'
-
+require 'facter'
+require 'versionomy'
 
 
 Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::ProductProvider) do
@@ -15,10 +12,9 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
   
   desc "Tibco package management for puppet"
 
-  has_feature :versionable, :patchable
+  has_feature :versionable
 
-
-  confine :operatingsystem => [:debian, :ubuntu, :centos, :darwin]
+  confine :operatingsystem => [:debian, :ubuntu, :centos]
  
    def self.get_install_location(resource)
      #debug("called get_install_location ")
@@ -26,14 +22,42 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
      return install_location
    end
 
+   def self.retrieveProductFromRepo(resource)
+     source =''
+     debug("retrieveProductFromRepo: started")
+     arch = Facter.value('hardwaremodel')
+     debug(arch)
+     os = Facter.value('osplatform')
+     debug(os)
+     case resource[:ensure].to_s
+       when 'present'|| 'absent'
+         
+       else
+         if resource[:source].nil?
+                         source =resource[:repository]+'/'+resource[:name]+'/'+resource[:ensure]+'/TIB_'+resource[:name]+'_'+resource[:ensure]+'_'+os+'_'+arch+'.zip'
+         else
+            source = resource[:source]
+         end
+     end
+#     if resource[:ensure] != 'present' || resource[:ensure] != 'absent'
+#       if resource[:source].nil?
+#         source =resource[:repository]+'/'+resource[:name]+'/'+resource[:ensure]+'/TIB_'+resource[:name]+'_'+resource[:ensure]+'_'+os+'_'+arch+'.zip'
+#       else
+#       source = resource[:source]
+#       end
+#     end
+     debug("retrieveProductFromRepo: "+source)
+     return source
+   end
+   
    def self.unzip(resource)
-     #debug("called unzip ")
-     command = ["unzip", resource[:source], "-d /tmp/#{resource[:name]}"].flatten.compact.join(' ')
+     debug("called unzip ")
+     command = ["unzip", retrieveProductFromRepo(resource), "-d /tmp/#{resource[:name]}"].flatten.compact.join(' ')
      output = execute(command, :failonfail => false, :combine => true)
    end
    
    def self.find_installer(resource)
-     #debug("called find_installer ")
+     debug("called find_installer ")
      installer_dir = resource[:ensure] == :absent || resource[:ensure] == :patched ? resource[:install_home]+"/tools/universal_installer" : get_install_location(resource)
      installer = "unset"
      if File.directory?(installer_dir)
@@ -53,9 +77,8 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
      return installer
    end
  
-   
   def self.get_hash_for_query(path)
-    #debug("called get_hash_for_query ")
+    debug("called get_hash_for_query ")
     options = Hash.new
     if File.directory?(path+"/_installInfo")
         begin#FIXME repair ls command in installInfo exists but have no xml files
@@ -74,10 +97,9 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
     end
     return options
   end
-   
-      
+     
   def self.get_tibco_products(path)
-    #debug("called get_tibco_products ")
+    debug("called get_tibco_products ")
     products = Hash.new
     if File.directory?(path+"/_installInfo")
         begin
@@ -99,19 +121,25 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
   end
   
   def self.build_product(line)
-    #debug("called build_product ")
+    debug("called build_product ")
     doc = Nokogiri::XML(File.open(line))
     productName = doc.xpath('/TIBCOInstallerFeatures/productDef/@name')
     productVersion = doc.xpath('/TIBCOInstallerFeatures/productDef/@version')
     productType = doc.xpath('/TIBCOInstallerFeatures/productDef/@productType')
     productId = doc.xpath('/TIBCOInstallerFeatures/productDef/@id')
     reinstall = doc.xpath('/TIBCOInstallerFeatures/productDef/@alwaysReinstall')
-    #debug("after parsing: productName= #{productName}, productVersion=#{productVersion}, productType=#{productType}, productId=#{productId}, reinstall=#{reinstall}")
-    return {:name => productId.to_s, :displayname => productName.to_s, :type => productType.to_s, :provider => name, :ensure => productVersion.to_s, :status => :installed, :alwaysreinstall => reinstall.to_s, :error => 'ok'}
+    
+    # Parse version numbers, including common prerelease syntax
+    v = Versionomy.parse(productVersion.to_s)
+    v.major                                 # => 1
+    v.minor                                 # => 4
+    v.tiny                                  # => 0
+    v.patchlevel                            # => 0
+    
+    #debug("after parsing: productName= #{productName}, productVersion=#{v.major}.#{v.minor}.#{v.tiny}, patchLevel=#{v.patchlevel} productType=#{productType}, productId=#{productId}, reinstall=#{reinstall}")
+    return {:name => productId.to_s, :displayname => productName.to_s, :type => productType.to_s, :provider => name, :ensure => "#{v.major}.#{v.minor}.#{v.tiny}",:patchlevel => v.patchlevel, :status => :installed, :alwaysreinstall => reinstall.to_s, :error => 'ok'}
   end
   
-
-
   def self.createResponseFile(resource)
     #debug("called createResponseFile ")
     responsefileproperites = resource[:responsefileproperites]
@@ -145,24 +173,6 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
     end
   end
   
-  def self.buildResource(resource)
-    location = resource[:ensure] ==:patched ? resource[:repository] + "/HOTFIXES" :resource[:repository]+ "/PRODUCTS"
-    location +="/#{resource[:name]}/#{resource[:ensure]}/TIB_#{resource[:name]}_#{resource[:ensure]}-HF-*.zip"
-    #debug("location : #{location}")
-    return location
-  end
-
-#  def applyPatch
-#    debug("called applyPatch for version #{@property_hash[:version]}")
-#    #first try to install if not present
-#    #install
-#    
-#    resourceItem = self.class.buildResource(@resource)
-#    debug("resourceItem Found: #{resourceItem}")
-#
-#  end
-  
-
   def query
     debug("called query for #{@resource[:name]}")
     hash = nil
@@ -175,9 +185,7 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
       #debug("query error")
        return {:ensure => :absent, :status => 'missing', :name => @resource[:name], :error => 'ok'}
     end
-
     hash ||= {:ensure => :absent, :status => 'missing', :name => @resource[:name], :error => 'ok'}
-
     if hash[:error] != "ok"
       raise Puppet::Error.new(
         "Product #{hash[:name]}, version #{hash[:ensure]} is in error state: #{hash[:error]}"
@@ -193,7 +201,7 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
   end
 
   def install
-    #debug("called install for product #{resource}")
+    debug("called install for product #{resource}")
     self.class.unzip(@resource)
     self.class.createResponseFile(@resource)
     command = [self.class.find_installer(@resource), "-silent", "-V responseFile='#{self.class.get_install_location(resource)}/puppet.silent'"].flatten.compact.join(' ')
@@ -212,9 +220,9 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
     install
   end
   
-def latest
-  debug("called latest")
-end
+  def latest
+    debug("called latest")
+  end
 
   def version(value)
     debug("called version for #{value} of product #{@resource[:name]}")

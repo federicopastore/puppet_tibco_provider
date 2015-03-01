@@ -16,7 +16,7 @@
   "project_page": "",
   "requirements": [],
   "source": "https://github.com/federicopastore/puppet_tibco_provider",
-  "summary": "A Puppet module to manage TIBCO product",
+  "summary": "A Puppet module to manage TIBCO product require versionomy, nokogiri",
   "tags": ["TIBCO", "product", "installer"],
   "version": "0.2.0"
 }
