@@ -61,17 +61,18 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
      installer_dir = resource[:ensure] == :absent || resource[:ensure] == :patched ? resource[:install_home]+"/tools/universal_installer" : get_install_location(resource)
      installer = "unset"
      if File.directory?(installer_dir)
-             begin
-               execpipe(["ls", installer_dir + "/TIBCOUniversalInstaller*.bin"]) do |process|
-                 process.each_line do |line|
-                   line.chomp!
-                   if line.empty? ; next; end
-                   installer = line
-                 end
-               end
-             rescue Puppet::ExecutionFailure
-               return installer
-             end
+       installer = installer_dir +"/"+Facter.value('osplatform')
+#             begin
+#               execpipe(["ls", installer_dir + "/TIBCOUniversalInstaller*.bin"]) do |process|
+#                 process.each_line do |line|
+#                   line.chomp!
+#                   if line.empty? ; next; end
+#                   installer = line
+#                 end
+#               end
+#             rescue Puppet::ExecutionFailure
+#               return installer
+#             end
          end
        
      return installer
