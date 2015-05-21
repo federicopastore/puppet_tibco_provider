@@ -13,13 +13,15 @@ end
 
 Facter.add('TIBCOUniversalInstaller') do 
   setcode do
+    hwmodel = Facter.value(:hardwaremodel)
+    hwmodel.gsub!('_','-')
     case Facter.value(:osfamily)
     when 'Windows'
-      'win'
+      'TIBCOUniversalInstaller-win'+hwmodel+'.exe'
     when "Darwin"
       'TIBCOUniversalInstaller-mac.command'
     else
-      'TIBCOUniversalInstaller-lnx-'+Facter.value(:hardwaremodel)+'.bin'
+      'TIBCOUniversalInstaller-lnx-'+hwmodel+'.bin'
     end
   end
 end

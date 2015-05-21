@@ -26,6 +26,7 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
      source =''
      debug("retrieveProductFromRepo: started")
      arch = Facter.value('hardwaremodel')
+     arch.gsub!('_','-')
      debug(arch)
      os = Facter.value('osplatform')
      debug(os)
@@ -56,12 +57,45 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
      output = execute(command, :failonfail => false, :combine => true)
    end
    
+  def self.copyInstallerToTemp(installer, resource)
+    debug("called copyInstallerToTemp "+ installer)
+    command = ["cp", installer, "/tmp/#{resource[:name]}/"].flatten.compact.join(' ')
+         output = execute(command, :failonfail => false, :combine => true)
+    debug("exit copyInstallerToTemp ")
+  end
+   
+  def self.get_InstallerVersion(resource)
+    debug("called get_InstallerVersion ")
+    inst_version ="---"
+    if File.directory?("/tmp/#{resource[:name]}")
+        begin
+          execpipe(["ls", "/tmp/#{resource[:name]}/product_#{resource[:name]}_*.xml"]) do |process|
+            process.each_line do |line|
+              line.chomp!
+              if line.empty? ; next; end
+             # if line.start_with?("product_#{resource[:name]}_")
+                  infos = build_product(line)
+                  inst_version = infos[:universalinstallerrelease]
+                  debug(" get_InstallerVersion exit")
+             # end
+            end
+          end
+        rescue Puppet::ExecutionFailure
+          return inst_version
+        end
+    end
+    return inst_version
+  end
+  
+
+  
    def self.find_installer(resource)
      debug("called find_installer ")
-     installer_dir = resource[:ensure] == :absent || resource[:ensure] == :patched ? resource[:install_home]+"/tools/universal_installer" : get_install_location(resource)
+     installer_dir = resource[:ensure] == :absent || resource[:ensure] == :patched ? resource[:install_home]+"/tools/universal_installer" : resource[:repository]+"/UniversalInstaller/"+get_InstallerVersion(resource)
      installer = "unset"
+     debug("called find_installer wwwwwwwwwww ")
      if File.directory?(installer_dir)
-       installer = installer_dir +"/"+Facter.value('osplatform')
+       installer = installer_dir +"/"+Facter.value('TIBCOUniversalInstaller')
 #             begin
 #               execpipe(["ls", installer_dir + "/TIBCOUniversalInstaller*.bin"]) do |process|
 #                 process.each_line do |line|
@@ -122,14 +156,14 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
   end
   
   def self.build_product(line)
-    debug("called build_product ")
+    debug("called build_product "+line)
     doc = Nokogiri::XML(File.open(line))
     productName = doc.xpath('/TIBCOInstallerFeatures/productDef/@name')
     productVersion = doc.xpath('/TIBCOInstallerFeatures/productDef/@version')
-    productType = doc.xpath('/TIBCOInstallerFeatures/productDef/@productType')
+    #productType = doc.xpath('/TIBCOInstallerFeatures/productDef/@productType')
     productId = doc.xpath('/TIBCOInstallerFeatures/productDef/@id')
-    reinstall = doc.xpath('/TIBCOInstallerFeatures/productDef/@alwaysReinstall')
-    
+    #reinstall = doc.xpath('/TIBCOInstallerFeatures/productDef/@alwaysReinstall')
+    universalinstallerrelease = doc.xpath('/TIBCOInstallerFeatures/productDef/@universalinstallerrelease')
     # Parse version numbers, including common prerelease syntax
     v = Versionomy.parse(productVersion.to_s)
     v.major                                 # => 1
@@ -137,8 +171,8 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
     v.tiny                                  # => 0
     v.patchlevel                            # => 0
     
-    #debug("after parsing: productName= #{productName}, productVersion=#{v.major}.#{v.minor}.#{v.tiny}, patchLevel=#{v.patchlevel} productType=#{productType}, productId=#{productId}, reinstall=#{reinstall}")
-    return {:name => productId.to_s, :displayname => productName.to_s, :type => productType.to_s, :provider => name, :ensure => "#{v.major}.#{v.minor}.#{v.tiny}",:patchlevel => v.patchlevel, :status => :installed, :alwaysreinstall => reinstall.to_s, :error => 'ok'}
+    debug("after parsing: productName= #{productName}, productVersion=#{v.major}.#{v.minor}.#{v.tiny}, patchLevel=#{v.patchlevel}, productId=#{productId}, universalinstallerrelease=#{universalinstallerrelease}")
+    return {:name => productId.to_s, :displayname => productName.to_s,  :provider => name, :ensure => "#{v.major}.#{v.minor}.#{v.tiny}",:patchlevel => v.patchlevel, :status => :installed, :error => 'ok', :universalinstallerrelease => universalinstallerrelease.to_s}
   end
   
   def self.createResponseFile(resource)
@@ -203,9 +237,11 @@ Puppet::Type.type(:product).provide(:tibco, :parent => Puppet::Provider::Product
 
   def install
     debug("called install for product #{resource}")
+    installer = self.class.find_installer(@resource)
     self.class.unzip(@resource)
     self.class.createResponseFile(@resource)
-    command = [self.class.find_installer(@resource), "-silent", "-V responseFile='#{self.class.get_install_location(resource)}/puppet.silent'"].flatten.compact.join(' ')
+    self.class.copyInstallerToTemp(installer, @resource)
+    command = ["cd /tmp/#{@resource[:name]}/ && chmod +x "+Facter.value('TIBCOUniversalInstaller')+" && ./"+Facter.value('TIBCOUniversalInstaller'), "-silent", "-V responseFile='#{self.class.get_install_location(resource)}/puppet.silent'"].flatten.compact.join(' ')
     output = execute(command, :failonfail => false, :combine => true)
   end
 
